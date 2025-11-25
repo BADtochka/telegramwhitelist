@@ -12,12 +12,12 @@ export class RconService {
   }
 
   async init() {
-    this.rcon = new RCON({ host: env.SERVER_IP, port: env.RCON_PORT, encoding: 'utf8' });
+    this.rcon = new RCON({ host: env.SERVER_IP_PORT.split(':')[0], port: env.RCON_PORT, encoding: 'utf8' });
     // @ts-ignore
     try {
       await this.rcon.authenticate(env.RCON_PASSWORD);
     } catch (error) {
-      this.logger.error(`Fail to connect to RCON server: ${env.SERVER_IP}:${env.RCON_PORT}`);
+      this.logger.error(`Fail to connect to RCON server: ${env.SERVER_IP_PORT.split(':')[0]}:${env.RCON_PORT}`);
       return;
     }
   }
