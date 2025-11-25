@@ -40,7 +40,7 @@ export class BotService {
       return;
     }
 
-    if (member) {
+    if (member && !['kicked', 'left'].includes(member.status)) {
       await ctx.reply('Круто, ты уже подписан 😎');
       ctx.replyWithMarkdownV2(
         '🧐 Отправь свой игровой никнейм для добавления в вайтлист\\. \n\n_Ник должен быть на английском языке и 3\\-16 символов\\._',
@@ -58,7 +58,10 @@ export class BotService {
     );
 
     if (ctx.callbackQuery) {
-      ctx.editMessageText(escapeMarkdown(menuMessage), menuKeyboard);
+      ctx.editMessageText(escapeMarkdown(menuMessage), {
+        parse_mode: 'MarkdownV2',
+        reply_markup: menuKeyboard.reply_markup,
+      });
       return;
     }
 
@@ -69,14 +72,15 @@ export class BotService {
   async onSubscribed(@Ctx() ctx: Context<TelegrafUpdate.MessageUpdate> & SceneContext) {
     const { data: member } = await tryCatch(ctx.telegram.getChatMember(env.TELEGRAM_SUB_CHANNEL, ctx.from!.id));
 
-    if (!member) {
-      ctx.reply(
-        '❌ Вы не подписались или что-то пошло не так, попробуйте ещё раз или напишите кому-нибудь об этом.',
-        backToMenu,
-      );
+    if (member && !['kicked', 'left'].includes(member.status)) {
+      ctx.scene.enter('subscribed');
       return;
     }
-    await ctx.scene.enter('subscribed');
+
+    ctx.reply(
+      '❌ Вы не подписались или что-то пошло не так, попробуйте ещё раз или напишите кому-нибудь об этом.',
+      backToMenu,
+    );
   }
 
   @Action('changeNickname')

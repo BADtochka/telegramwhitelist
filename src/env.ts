@@ -7,6 +7,7 @@ export const env = createEnv({
     TOKEN: z.string('Укажите токен в .env файле'),
     TELEGRAM_SUB_CHANNEL: z.string('Укажите @channel в .env файле'),
     SERVER_IP_PORT: z.string('Укажите IP сервера в .env файле'),
+    WELCOME_MESSAGE: z.string().optional(),
     RCON_PORT: z
       .string('Укажите порт RCON сервера в .env файле')
       .transform((port) => parseInt(port, 10))

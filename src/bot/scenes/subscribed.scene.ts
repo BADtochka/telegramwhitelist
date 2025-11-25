@@ -1,10 +1,11 @@
 import { backToMenu } from '@/constants/backToMenu';
 import { whitelistMessage } from '@/constants/whitelistMessage';
+import { env } from '@/env';
 import { RconService } from '@/rcon/rcon.service';
 import { UserService } from '@/user/user.service';
 import { tryCatch } from '@/utils/tryCatch';
 import { validateNickname } from '@/utils/validateNickname';
-import { Action, Ctx, On, Wizard, WizardStep } from 'nestjs-telegraf';
+import { Command, Ctx, On, Wizard, WizardStep } from 'nestjs-telegraf';
 import { Message, Update as TelegrafUpdate } from 'node_modules/telegraf/typings/core/types/typegram';
 import { SceneContext, WizardContext } from 'node_modules/telegraf/typings/scenes';
 import { Context } from 'telegraf';
@@ -18,7 +19,7 @@ export class SubscribedScene {
     private rconSerivce: RconService,
   ) {}
 
-  @Action('mainMenu')
+  @Command('mainMenu')
   async onMenu(@Ctx() ctx: Context<TelegrafUpdate.MessageUpdate> & SceneContext) {
     this.botService.onMainMenu(ctx);
   }
@@ -69,7 +70,12 @@ export class SubscribedScene {
 
     await this.userSerivce.updateUser(ctx.from!.id, { minecraftName: nickname });
     this.rconSerivce.sendCommand(`whitelist add ${nickname}`);
-    await ctx.replyWithMarkdownV2(whitelistMessage, backToMenu);
+    await ctx.replyWithMarkdownV2(`${whitelistMessage} \n${env.WELCOME_MESSAGE}`, {
+      reply_markup: backToMenu.reply_markup,
+      link_preview_options: {
+        is_disabled: true,
+      },
+    });
     ctx.scene.leave();
   }
 }
