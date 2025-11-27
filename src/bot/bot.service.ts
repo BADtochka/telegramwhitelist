@@ -34,7 +34,7 @@ export class BotService {
       this.userSerivce.createUser(ctx.from!.id);
     } else if (user.minecraftName) {
       ctx.reply(
-        `🎫 Ник ${user.minecraftName} уже добавлен в вайтлист.`,
+        `🎫 Ник ${escapeMarkdown(user.minecraftName)} уже добавлен в вайтлист.`,
         Markup.inlineKeyboard([Markup.button.callback('Сменить ник', 'changeNickname')]),
       );
       return;
