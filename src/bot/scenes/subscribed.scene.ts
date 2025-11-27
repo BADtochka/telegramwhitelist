@@ -17,7 +17,7 @@ export class SubscribedScene {
     private botService: BotService,
     private userSerivce: UserService,
     private rconSerivce: RconService,
-  ) {}
+  ) { }
 
   @Command('mainMenu')
   async onMenu(@Ctx() ctx: Context<TelegrafUpdate.MessageUpdate> & SceneContext) {
@@ -28,7 +28,7 @@ export class SubscribedScene {
   async onStep1(@Ctx() ctx: WizardContext) {
     if (ctx.callbackQuery) ctx.answerCbQuery();
     ctx.editMessageText(
-      '🧐 Отправь свой игровой никнейм для добавления в вайтлист\\. \n\n_Ник должен быть на английском языке и 3\\-16 символов\\._',
+      '🧐 Отправь свой игровой никнейм для добавления в вайтлист\\. \n\nНик должен быть на английском языке и 3\\-16 символов\\.',
       {
         parse_mode: 'MarkdownV2',
       },
