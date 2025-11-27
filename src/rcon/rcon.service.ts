@@ -1,9 +1,12 @@
 import { env } from '@/env';
+import { tryCatch } from '@/utils/tryCatch';
 import { Injectable, Logger } from '@nestjs/common';
 import RCON from 'rcon-srcds';
 
 @Injectable()
 export class RconService {
+  rconIsCrashed = false;
+
   private rcon: RCON;
   private logger = new Logger(RconService.name);
 
@@ -22,13 +25,19 @@ export class RconService {
     }
   }
 
-  async sendCommand(command: string) {
+  async ensureConnected() {
+    if (!this.rcon || !this.rcon.isConnected) await this.init();
+  }
+
+  async sendCommand<R extends string | boolean>(command: string) {
+    await this.ensureConnected();
     this.logger.log(`Sending command: ${command}`);
-    return this.rcon.execute(command);
+
+    return (await this.rcon.execute(command)) as R;
   }
 
   async checkWhitelist() {
-    const rawWhitelist = (await this.sendCommand('whitelist list')) as string;
+    const rawWhitelist = await this.sendCommand<string>('whitelist list');
     if (rawWhitelist.includes('no whitelisted players')) return [];
     const nicknames = rawWhitelist.split(': ')[1]?.split(', ');
 

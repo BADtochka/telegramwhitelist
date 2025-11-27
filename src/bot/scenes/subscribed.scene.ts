@@ -69,7 +69,7 @@ export class SubscribedScene {
     }
 
     await this.userSerivce.updateUser(ctx.from!.id, { minecraftName: nickname });
-    this.rconSerivce.sendCommand(`whitelist add ${nickname}`);
+    await this.rconSerivce.sendCommand(`whitelist add ${nickname}`);
     await ctx.replyWithMarkdownV2(`${whitelistMessage} \n${env.WELCOME_MESSAGE}`, {
       reply_markup: backToMenu.reply_markup,
       link_preview_options: {
