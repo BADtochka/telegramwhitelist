@@ -38,7 +38,7 @@ export class ChangeNicknameScene {
     const nickname = ctx.message.text;
 
     if (!('text' in ctx.message)) {
-      ctx.editMessageText('Что-то пошло не так 😭', backToMenu);
+      ctx.reply('Что-то пошло не так 😭', backToMenu);
       ctx.scene.leave();
       return;
     }
@@ -52,7 +52,7 @@ export class ChangeNicknameScene {
     }
 
     if (!nickname || !validateNickname(nickname)) {
-      ctx.editMessageText('Ник неподходит под требования 😭');
+      ctx.reply('Ник неподходит под требования 😭');
       ctx.scene.leave();
       return;
     }
