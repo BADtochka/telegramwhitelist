@@ -24,6 +24,7 @@ export class RconService {
       this.logger.debug(`Rcon successfully connected ${env.SERVER_IP_PORT.split(':')[0]}:${env.RCON_PORT}`);
       this.rcon.connection.addListener('error', (e) => this.handleError(`RCON crashed: ${e.message}`));
       this.rconIsCrashed = false;
+      this.checkAllBanlist();
       return;
     }
     this.handleError(
@@ -54,6 +55,21 @@ export class RconService {
     }
 
     return inBanList;
+  }
+
+  async checkAllBanlist() {
+    const rawBanlist = await this.sendCommand<string>('banlist');
+    if (rawBanlist.includes('are no bans')) return false;
+    const bannedPlayers =
+      rawBanlist
+        .split('ban(s):')[1]
+        ?.split(' was banned')
+        .map((item) => item.split('.').pop()!.trim())
+        .filter((name) => name) ?? [];
+
+    for (const player of bannedPlayers) {
+      await this.userService.updateByNickname(player, { bannedNickname: player });
+    }
   }
 
   async checkWhitelist(nickname: string) {

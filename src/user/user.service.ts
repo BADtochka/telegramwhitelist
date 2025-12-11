@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 
 @Injectable()
 export class UserService {
   public constructor(@InjectRepository(User) private userRepository: Repository<User>) {}
+
+  async removeEmptyAccounts() {
+    return await this.userRepository.delete({ minecraftName: IsNull() });
+  }
 
   async createUser(telegramId: number, minecraftName?: string) {
     return await this.userRepository.save({ telegramId, minecraftName });
