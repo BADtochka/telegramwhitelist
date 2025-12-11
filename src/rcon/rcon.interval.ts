@@ -1,9 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+import { RconService } from './rcon.service';
 
 @Injectable()
-export class RconIntervalService {
-  // TODO: add interval method for rcon connection checking
-  //   @Interval(5000)
-  //   async checkHealth() {}
+export class RconHelthService {
+  private logger = new Logger(RconHelthService.name);
+
+  constructor(private rconService: RconService) {}
+
+  @Interval(5000)
+  async checkHealth() {
+    if (!this.rconService.rconIsCrashed) return;
+
+    this.logger.log('Rcon crash detected trying to reconnect...');
+    this.rconService.init();
+  }
 }

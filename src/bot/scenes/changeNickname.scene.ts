@@ -1,69 +1,65 @@
-import { backToMenu } from '@/constants/backToMenu';
+import { BANNED_PLAYER_MESSAGE, NOT_AVAILABLE_BOT_MESSAGE, WHITELIST_MESSAGE } from '@/constants/messages';
 import { RconService } from '@/rcon/rcon.service';
+import { AppContext } from '@/types/Context';
+import { User } from '@/user/entities/user.entity';
 import { UserService } from '@/user/user.service';
-import { validateNickname } from '@/utils/validateNickname';
-import { Action, On, Wizard, WizardStep } from 'nestjs-telegraf';
-import { Message, Update as TelegrafUpdate } from 'node_modules/telegraf/typings/core/types/typegram';
-import { SceneContext, WizardContext } from 'node_modules/telegraf/typings/scenes';
-import { Context } from 'telegraf';
+import { tryCatch } from '@/utils/tryCatch';
+import { Logger } from '@nestjs/common';
+import { Ctx, Wizard, WizardStep } from 'nestjs-telegraf';
+import { Message, Update } from 'telegraf/types';
+import { BotHelper } from '../bot.helper';
 import { BotService } from '../bot.service';
 
 @Wizard('changeNickname')
 export class ChangeNicknameScene {
+  private logger = new Logger(ChangeNicknameScene.name);
+
   constructor(
+    private rconService: RconService,
+    private userService: UserService,
+    private botHelper: BotHelper,
     private botService: BotService,
-    private userSerivce: UserService,
-    private rconSerivce: RconService,
-  ) { }
+  ) {}
 
-  @WizardStep(0)
-  async onStep1(ctx: WizardContext) {
-    if (ctx.callbackQuery) ctx.answerCbQuery();
-    ctx.editMessageText(
-      '🧐 Отправь свой игровой никнейм для добавления в вайтлист\\. \n\nНик должен быть на английском языке и 3\\-16 символов\\.',
-      {
-        parse_mode: 'MarkdownV2',
-      },
+  @WizardStep(1)
+  async onFirstStep(@Ctx() ctx: AppContext<Update.MessageUpdate<Message.TextMessage>, { user: User }>) {
+    if (this.rconService.rconIsCrashed) return NOT_AVAILABLE_BOT_MESSAGE;
+    const { data: user } = await tryCatch(this.userService.getUserByTelegram(ctx.from.id));
+
+    if (!user) return 'Что-то пошло не так, попробуйте вызвать /menu ещё раз.';
+
+    if (user && user.bannedNickname) {
+      const banIsRelevant = await this.rconService.checkBanlist(user.bannedNickname);
+      if (banIsRelevant) return BANNED_PLAYER_MESSAGE;
+    }
+
+    ctx.replyWithMarkdownV2(
+      '👌 Давайте сменим никнейм, его нужно отправить в чат\\. \n\nПри смене никнейма старый аккаунт удаляется из вайтлиста сервера\\.',
     );
+
+    ctx.wizard.state.user = user;
+    ctx.wizard.next();
   }
 
-  @Action('mainMenu')
-  async onMenu(ctx: Context<TelegrafUpdate.MessageUpdate> & SceneContext) {
-    this.botService.onMainMenu(ctx);
-  }
-
-  @On('message')
-  async onMessage(ctx: WizardContext & Context<TelegrafUpdate.MessageUpdate<Message.TextMessage>>) {
-    if (ctx.message.entities?.some((entity) => entity.type === 'bot_command')) return;
-    const nickname = ctx.message.text;
-
-    if (!('text' in ctx.message)) {
-      ctx.reply('Что-то пошло не так 😭', backToMenu);
-      ctx.scene.leave();
+  @WizardStep(2)
+  async onMessage(@Ctx() ctx: AppContext<Update.MessageUpdate<Message.TextMessage>, { user: User }>) {
+    if (ctx.wizard.cursor === 0) return;
+    if (this.rconService.rconIsCrashed) return NOT_AVAILABLE_BOT_MESSAGE;
+    if (ctx.message.entities) {
+      await ctx.scene.leave();
+      this.botService.onMainMenu(ctx);
       return;
     }
 
-    const isAlreadyWhitelisted = (await this.rconSerivce.checkWhitelist()).includes(nickname);
+    const nickname = ctx.message.text.toLowerCase();
+    const { user } = ctx.wizard.state;
+    const accepted = await this.botHelper.beforeWhitelist(ctx);
+    if (!accepted) return;
 
-    if (isAlreadyWhitelisted) {
-      ctx.reply('❌ Этот ник уже в вайтлисте', backToMenu);
-      ctx.scene.leave();
-      return;
-    }
-
-    if (!nickname || !validateNickname(nickname)) {
-      ctx.reply('Ник неподходит под требования 😭');
-      ctx.scene.leave();
-      return;
-    }
-
-    const user = await this.userSerivce.getUser(ctx.from!.id);
-
-    await this.rconSerivce.sendCommand(`whitelist remove ${user?.minecraftName}`);
-    await this.rconSerivce.sendCommand(`kick ${user?.minecraftName} Смена никнейма в боте`);
-    await this.userSerivce.updateUser(ctx.from!.id, { minecraftName: nickname });
-    await this.rconSerivce.sendCommand(`whitelist add ${nickname}`);
-    await ctx.replyWithMarkdownV2(`Никнейм успешно изменён на ${nickname}`);
-    ctx.scene.leave();
+    await this.rconService.sendCommand(`whitelist remove ${user?.minecraftName}`);
+    await this.rconService.sendCommand(`kick ${user.minecraftName} Смена никнейма в боте`);
+    await this.userService.updateByTelegram(ctx.from.id, { minecraftName: nickname });
+    await this.rconService.sendCommand(`whitelist add ${nickname}`);
+    ctx.replyWithMarkdownV2(WHITELIST_MESSAGE, { link_preview_options: { is_disabled: true } });
   }
 }

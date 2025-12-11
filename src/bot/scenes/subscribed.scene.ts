@@ -1,81 +1,50 @@
-import { backToMenu } from '@/constants/backToMenu';
-import { whitelistMessage } from '@/constants/whitelistMessage';
+import { NOT_AVAILABLE_BOT_MESSAGE, WHITELIST_MESSAGE } from '@/constants/messages';
 import { env } from '@/env';
 import { RconService } from '@/rcon/rcon.service';
+import { AppContext } from '@/types/Context';
 import { UserService } from '@/user/user.service';
-import { tryCatch } from '@/utils/tryCatch';
-import { validateNickname } from '@/utils/validateNickname';
-import { Command, Ctx, On, Wizard, WizardStep } from 'nestjs-telegraf';
-import { Message, Update as TelegrafUpdate } from 'node_modules/telegraf/typings/core/types/typegram';
-import { SceneContext, WizardContext } from 'node_modules/telegraf/typings/scenes';
-import { Context } from 'telegraf';
+import { Ctx, Wizard, WizardStep } from 'nestjs-telegraf';
+import { Message, Update as TelegrafUpdate } from 'telegraf/types';
+import { BotHelper } from '../bot.helper';
 import { BotService } from '../bot.service';
 
 @Wizard('subscribed')
 export class SubscribedScene {
   constructor(
-    private botService: BotService,
     private userSerivce: UserService,
     private rconSerivce: RconService,
-  ) { }
+    private botService: BotService,
+    private botHelper: BotHelper,
+  ) {}
 
-  @Command('mainMenu')
-  async onMenu(@Ctx() ctx: Context<TelegrafUpdate.MessageUpdate> & SceneContext) {
-    this.botService.onMainMenu(ctx);
-  }
+  @WizardStep(1)
+  async onSubscribed(@Ctx() ctx: AppContext) {
+    if (this.rconSerivce.rconIsCrashed) return NOT_AVAILABLE_BOT_MESSAGE;
 
-  @WizardStep(0)
-  async onStep1(@Ctx() ctx: WizardContext) {
-    if (ctx.callbackQuery) ctx.answerCbQuery();
-    ctx.editMessageText(
-      '🧐 Отправь свой игровой никнейм для добавления в вайтлист\\. \n\nНик должен быть на английском языке и 3\\-16 символов\\.',
-      {
-        parse_mode: 'MarkdownV2',
-      },
+    ctx.replyWithMarkdownV2(
+      `😇 Пока вы подписаны на канал ${env.TELEGRAM_SUB_CHANNEL} вы будите находится в вайтлисте\\. \nЕсли вы отпишитесь от канала, бот автоматически удалит вас\\. \n\n*Отправьте свой никнейм в майнкрафте, например\\: Notch*`,
     );
+
+    ctx.wizard.next();
   }
 
-  @On('message')
-  async onMessage(@Ctx() ctx: WizardContext & Context<TelegrafUpdate.MessageUpdate<Message.TextMessage>>) {
-    if (ctx.message.entities?.some((entity) => entity.type === 'bot_command')) return;
-    const nickname = ctx.message.text;
-
-    if (!('text' in ctx.message)) {
-      ctx.reply('Что-то пошло не так 😭', backToMenu);
-      ctx.scene.leave();
+  @WizardStep(2)
+  async onMessage(@Ctx() ctx: AppContext<TelegrafUpdate.MessageUpdate<Message.TextMessage>>) {
+    if (ctx.wizard.cursor === 0) return;
+    if (this.rconSerivce.rconIsCrashed) return NOT_AVAILABLE_BOT_MESSAGE;
+    if (ctx.message.entities) {
+      await ctx.scene.leave();
+      this.botService.onMainMenu(ctx);
       return;
     }
 
-    const isAlreadyWhitelisted = (await this.rconSerivce.checkWhitelist()).includes(nickname);
+    const nickname = ctx.message.text.toLowerCase();
+    const accepted = await this.botHelper.beforeWhitelist(ctx);
 
-    if (isAlreadyWhitelisted) {
-      ctx.reply('❌ Этот ник уже в вайтлисте', backToMenu);
-      ctx.scene.leave();
-      return;
-    }
+    if (!accepted) return;
 
-    if (!nickname || !validateNickname(nickname)) {
-      ctx.reply('Ник неподходит под требования 😭');
-      ctx.scene.leave();
-      return;
-    }
-
-    const { error } = await tryCatch(this.userSerivce.createUser(ctx.from!.id, nickname));
-
-    if (error) {
-      ctx.reply('Что-то пошло не так 😭', backToMenu);
-      ctx.scene.leave();
-      return;
-    }
-
-    await this.userSerivce.updateUser(ctx.from!.id, { minecraftName: nickname });
+    await this.userSerivce.createUser(ctx.from.id, nickname);
     await this.rconSerivce.sendCommand(`whitelist add ${nickname}`);
-    await ctx.replyWithMarkdownV2(`${whitelistMessage} \n${env.WELCOME_MESSAGE}`, {
-      reply_markup: backToMenu.reply_markup,
-      link_preview_options: {
-        is_disabled: true,
-      },
-    });
-    ctx.scene.leave();
+    ctx.replyWithMarkdownV2(WHITELIST_MESSAGE, { link_preview_options: { is_disabled: true } });
   }
 }

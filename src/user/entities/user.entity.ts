@@ -7,4 +7,7 @@ export class User {
 
   @Column({ nullable: true, unique: true })
   minecraftName: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  bannedNickname: string | null;
 }

@@ -11,11 +11,19 @@ export class UserService {
     return await this.userRepository.save({ telegramId, minecraftName });
   }
 
-  async updateUser(telegramId: number, data: Partial<User>) {
+  async updateByTelegram(telegramId: number, data: Partial<User>) {
     return await this.userRepository.update({ telegramId }, data);
   }
 
-  async getUser(telegramId: number) {
+  async updateByNickname(nickname: string, data: Partial<User>) {
+    return await this.userRepository.update({ minecraftName: nickname }, data);
+  }
+
+  async getUserByTelegram(telegramId: number) {
     return await this.userRepository.findOneBy({ telegramId });
+  }
+
+  async getUserByNickname(nickname: string) {
+    return await this.userRepository.findOneBy({ minecraftName: nickname });
   }
 }
