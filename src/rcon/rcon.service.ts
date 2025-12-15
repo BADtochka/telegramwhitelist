@@ -34,7 +34,13 @@ export class RconService {
 
   async sendCommand<R extends string | boolean>(command: string) {
     this.logger.log(`Sending command: ${command}`);
-    return (await this.rcon.execute(command)) as R;
+    const { data } = await tryCatch(this.rcon.execute(command));
+    if (!data) {
+      this.rconIsCrashed = true;
+      return '';
+    }
+
+    return data as R;
   }
 
   async checkBanlist(nickname: string) {
