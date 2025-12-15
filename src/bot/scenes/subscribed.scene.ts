@@ -38,12 +38,12 @@ export class SubscribedScene {
       return;
     }
 
-    const nickname = ctx.message.text.toLowerCase();
+    const nickname = ctx.message.text;
     const accepted = await this.botHelper.beforeWhitelist(ctx);
 
     if (!accepted) return;
 
-    await this.userSerivce.createUser(ctx.from.id, nickname);
+    await this.userSerivce.createUser(ctx.from.id, nickname.toLowerCase());
     await this.rconSerivce.sendCommand(`whitelist add ${nickname}`);
     ctx.replyWithMarkdownV2(WHITELIST_MESSAGE, { link_preview_options: { is_disabled: true } });
   }

@@ -51,14 +51,14 @@ export class ChangeNicknameScene {
       return;
     }
 
-    const nickname = ctx.message.text.toLowerCase();
+    const nickname = ctx.message.text;
     const { user } = ctx.wizard.state;
     const accepted = await this.botHelper.beforeWhitelist(ctx);
     if (!accepted) return;
 
     await this.rconService.sendCommand(`whitelist remove ${user?.minecraftName}`);
     await this.rconService.sendCommand(`kick ${user.minecraftName} Смена никнейма в боте`);
-    await this.userService.updateByTelegram(ctx.from.id, { minecraftName: nickname });
+    await this.userService.updateByTelegram(ctx.from.id, { minecraftName: nickname.toLowerCase() });
     await this.rconService.sendCommand(`whitelist add ${nickname}`);
     ctx.replyWithMarkdownV2(WHITELIST_MESSAGE, { link_preview_options: { is_disabled: true } });
   }
